@@ -1,8 +1,9 @@
 pipeline {
-    agent any
-
-    tools {
-        maven 'maven'
+    agent {
+        docker {
+            image 'maven:3.9.9-eclipse-temurin-21'
+            args '-u root' // run as root inside container
+        }
     }
 
     environment {
@@ -12,29 +13,18 @@ pipeline {
     stages {
         stage('Build') {
             steps {
-                sh 'mvn -v'
                 sh 'mvn clean package'
             }
         }
 
         stage('Snyk Security Scan') {
             steps {
-                script {
-                    sh '''
-                        # Ensure Node.js exists
-                        if ! command -v npm >/dev/null 2>&1; then
-                            echo "Installing Node.js..."
-                            curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-                            apt-get install -y nodejs
-                        fi
-
-                        echo "Installing Snyk CLI..."
-                        npm install -g snyk
-
-                        snyk auth $SNYK_TOKEN
-                        snyk test --file=pom.xml --severity-threshold=medium --json > snyk-report.json || true
-                    '''
-                }
+                sh '''
+                    apt-get update && apt-get install -y curl npm
+                    npm install -g snyk
+                    snyk auth $SNYK_TOKEN
+                    snyk test --file=pom.xml --severity-threshold=medium --json > snyk-report.json || true
+                '''
             }
         }
 
@@ -43,10 +33,5 @@ pipeline {
                 archiveArtifacts artifacts: 'snyk-report.json', onlyIfSuccessful: false
             }
         }
-    }
-
-    post {
-        success { echo '✅ Build & Snyk scan complete' }
-        failure { echo '❌ Check logs or Snyk report' }
     }
 }
