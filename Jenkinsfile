@@ -34,9 +34,4 @@ pipeline {
             }
         }
     }
-
-    post {
-        success { echo '✅ Build & Snyk scan completed successfully!' }
-        failure { echo '❌ Build failed — check logs or Snyk report.' }
-    }
 }
