@@ -1,29 +1,40 @@
 pipeline {
-    agent {
-        docker {
-            image 'maven:3.9.9-eclipse-temurin-21'
-            args '-u root'
-        }
-    }
+    agent any
 
     environment {
         SNYK_TOKEN = credentials('snyk-token')
     }
 
     stages {
-        stage('Build') {
+
+        stage('Build with Maven') {
             steps {
-                sh 'mvn clean package'
+                sh 'mvn clean package -DskipTests'
             }
         }
 
-        stage('Snyk Security Scan') {
+        stage('Install Snyk CLI') {
             steps {
                 sh '''
-                    apt-get update && apt-get install -y npm
-                    npm install -g snyk
-                    snyk auth $SNYK_TOKEN
-                    snyk test --file=pom.xml --severity-threshold=medium --json > snyk-report.json || true
+                    curl -sL https://static.snyk.io/cli/latest/snyk-linux -o snyk
+                    chmod +x snyk
+                    mv snyk /usr/local/bin/snyk
+                '''
+            }
+        }
+
+        stage('Authenticate Snyk') {
+            steps {
+                sh 'snyk auth $SNYK_TOKEN'
+            }
+        }
+
+        stage('Snyk Scan') {
+            steps {
+                sh '''
+                    snyk test --file=pom.xml \
+                        --severity-threshold=medium \
+                        --json > snyk-report.json || true
                 '''
             }
         }
