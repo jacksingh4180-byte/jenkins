@@ -2,11 +2,11 @@ pipeline {
     agent any
 
     tools {
-        maven 'maven'   // <-- EXACT name from Jenkins Global Tool Config
+        maven 'maven'   // Name from Global Tool Config
     }
 
     environment {
-        SNYK_TOKEN = credentials('snyk-token')
+        SNYK_TOKEN = credentials('snyk-token')   // Secret text credential
     }
 
     stages {
@@ -15,6 +15,12 @@ pipeline {
             steps {
                 sh 'mvn -version'
                 sh 'mvn clean package -DskipTests'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh 'mvn test'
             }
         }
 
@@ -34,19 +40,28 @@ pipeline {
             }
         }
 
-        stage('Snyk Scan') {
+        stage('Snyk SCA Scan') {
             steps {
                 sh '''
                     snyk test --file=pom.xml \
                         --severity-threshold=medium \
-                        --json > snyk-report.json || true
+                        --json > snyk-sca-report.json \
+                        || true
                 '''
             }
         }
 
-        stage('Archive Report') {
+        stage('Upload Snyk Results to Dashboard') {
             steps {
-                archiveArtifacts artifacts: 'snyk-report.json', onlyIfSuccessful: false
+                sh '''
+                    snyk monitor --file=pom.xml || true
+                '''
+            }
+        }
+
+        stage('Archive Reports') {
+            steps {
+                archiveArtifacts artifacts: 'snyk-sca-report.json', onlyIfSuccessful: false
             }
         }
     }
