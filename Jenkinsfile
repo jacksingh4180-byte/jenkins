@@ -1,14 +1,19 @@
 pipeline {
     agent any
 
+    tools {
+        maven 'maven-3.9.9'   // <-- MUST match the name you used in Jenkins UI
+    }
+
     environment {
         SNYK_TOKEN = credentials('snyk-token')
     }
 
     stages {
 
-        stage('Build with Maven') {
+        stage('Build') {
             steps {
+                sh 'mvn -version'
                 sh 'mvn clean package -DskipTests'
             }
         }
